@@ -45,6 +45,10 @@ class Tensor:
     def size(self) -> int:
         return self.data.size
 
+    @property
+    def dtype(self):
+        return self.data.dtype
+
     # ------------------------------------------------------------------
     # Factory methods
     # ------------------------------------------------------------------
@@ -79,9 +83,21 @@ class Tensor:
         """Element-wise addition."""
         return Tensor(self.data + other.data)
 
+    def subtract(self, other: "Tensor") -> "Tensor":
+        """Element-wise subtraction."""
+        return Tensor(self.data - other.data)
+
     def multiply(self, other: "Tensor") -> "Tensor":
         """Element-wise (Hadamard) multiplication."""
         return Tensor(self.data * other.data)
+
+    def divide(self, other: "Tensor") -> "Tensor":
+        """Element-wise division."""
+        return Tensor(self.data / other.data)
+
+    def power(self, exponent: float) -> "Tensor":
+        """Raise each element to the given power."""
+        return Tensor(np.power(self.data, exponent))
 
     def dot(self, other: "Tensor") -> "Tensor":
         """Matrix multiplication via np.dot."""
@@ -91,9 +107,17 @@ class Tensor:
         """Return the transpose of this tensor."""
         return Tensor(self.data.T)
 
+    def reshape(self, new_shape: Tuple[int, ...]) -> "Tensor":
+        """Reshape tensor to new_shape. Follows numpy reshape semantics."""
+        return Tensor(self.data.reshape(new_shape))
+
     def sum(self, axis: Optional[int] = None, keepdims: bool = False) -> "Tensor":
         """Sum elements along an axis (or all elements if axis is None)."""
         return Tensor(self.data.sum(axis=axis, keepdims=keepdims))
+
+    def mean(self, axis: Optional[int] = None, keepdims: bool = False) -> "Tensor":
+        """Mean of elements along an axis."""
+        return Tensor(self.data.mean(axis=axis, keepdims=keepdims))
 
     # ------------------------------------------------------------------
     # Operator overloads (convenience)
@@ -102,17 +126,23 @@ class Tensor:
     def __add__(self, other: "Tensor") -> "Tensor":
         return self.add(other)
 
+    def __sub__(self, other: "Tensor") -> "Tensor":
+        return self.subtract(other)
+
     def __mul__(self, other: "Tensor") -> "Tensor":
         return self.multiply(other)
+
+    def __truediv__(self, other: "Tensor") -> "Tensor":
+        return self.divide(other)
+
+    def __pow__(self, exponent: float) -> "Tensor":
+        return self.power(exponent)
 
     def __matmul__(self, other: "Tensor") -> "Tensor":
         return self.dot(other)
 
     def __neg__(self) -> "Tensor":
         return Tensor(-self.data)
-
-    def __sub__(self, other: "Tensor") -> "Tensor":
-        return Tensor(self.data - other.data)
 
     # ------------------------------------------------------------------
     # Misc
@@ -122,8 +152,16 @@ class Tensor:
         """Return the raw numpy array."""
         return self.data
 
+    def __len__(self) -> int:
+        if self.ndim == 0:
+            raise TypeError("len() of a 0-d tensor")
+        return self.data.shape[0]
+
     def __repr__(self) -> str:
-        return f"Tensor(shape={self.shape}, dtype={self.data.dtype})"
+        # show small tensors inline, larger ones just show shape
+        if self.size <= 10:
+            return f"Tensor({self.data}, dtype={self.dtype})"
+        return f"Tensor(shape={self.shape}, dtype={self.dtype})"
 
     def __eq__(self, other: object) -> bool:  # type: ignore[override]
         if not isinstance(other, Tensor):
