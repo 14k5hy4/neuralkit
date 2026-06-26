@@ -67,11 +67,14 @@ class Dense(Layer):
         if self.activation is not None:
             grad_output = self.activation.backward(grad_output)
 
-        batch_size = self._input.shape[0]
-        self._grad_W = self._input.T @ grad_output / batch_size
-        self._grad_b = np.mean(grad_output, axis=0, keepdims=True)
+        inp = self._input
+        if inp.ndim == 1:
+            inp = inp.reshape(1, -1)
+            grad_output = grad_output.reshape(1, -1)
 
-        # FIXME: handle case where input might have been 1-d (no batch dim)
+        self._grad_W = inp.T @ grad_output
+        self._grad_b = np.sum(grad_output, axis=0, keepdims=True)
+
         grad_input = grad_output @ self.W.T
         return grad_input
 

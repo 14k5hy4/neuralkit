@@ -28,8 +28,8 @@ class Sigmoid:
         Returns:
             Array of same shape with values in (0, 1).
         """
-        # Clip to avoid overflow in exp
-        x_safe = np.clip(x, -500, 500)
+        # clip to ~88 since exp(88) is near float64 max
+        x_safe = np.clip(x, -88, 88)
         self._out = 1.0 / (1.0 + np.exp(-x_safe))
         return self._out
 

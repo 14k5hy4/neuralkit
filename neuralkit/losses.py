@@ -75,14 +75,15 @@ class CrossEntropyLoss:
         Returns:
             Scalar loss value.
         """
-        self._y_pred = np.clip(y_pred, self._EPS, 1.0 - self._EPS)
+        clipped = np.clip(y_pred, self._EPS, 1.0 - self._EPS)
+        self._y_pred = clipped
         self._y_true = y_true
         self._n = y_pred.shape[0]
 
         # General form that works for both binary and multi-class
         loss = -np.sum(
-            y_true * np.log(self._y_pred)
-            + (1.0 - y_true) * np.log(1.0 - self._y_pred)
+            y_true * np.log(clipped)
+            + (1.0 - y_true) * np.log(1.0 - clipped)
         )
         return float(loss / self._n)
 
