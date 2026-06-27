@@ -100,4 +100,45 @@ class CrossEntropyLoss:
         return grad / self._n
 
 
-# TODO: implement Softmax + CrossEntropy fused version for numerical stability
+class SoftmaxCrossEntropy:
+    """Fused softmax + cross-entropy for multi-class classification.
+
+    Operates on raw logits (pre-softmax) which avoids numerical issues
+    from computing log(softmax(x)) separately. The gradient simplifies
+    to just (softmax_output - y_true), which is nice.
+
+    Expects y_true as one-hot encoded targets.
+    """
+
+    def __init__(self) -> None:
+        self._probs: np.ndarray | None = None
+        self._y_true: np.ndarray | None = None
+        self._n: int = 0
+
+    def _softmax(self, logits: np.ndarray) -> np.ndarray:
+        shifted = logits - np.max(logits, axis=-1, keepdims=True)
+        exp_x = np.exp(shifted)
+        return exp_x / np.sum(exp_x, axis=-1, keepdims=True)
+
+    def forward(self, logits: np.ndarray, y_true: np.ndarray) -> float:
+        """Compute cross-entropy loss from raw logits.
+
+        Args:
+            logits: Raw model output, shape (n, num_classes).
+            y_true: One-hot targets, same shape.
+        """
+        self._probs = self._softmax(logits)
+        self._y_true = y_true
+        self._n = logits.shape[0]
+
+        # stable log-softmax: log(softmax(x)) = x - max(x) - log(sum(exp(x - max(x))))
+        shifted = logits - np.max(logits, axis=-1, keepdims=True)
+        log_probs = shifted - np.log(np.sum(np.exp(shifted), axis=-1, keepdims=True))
+
+        loss = -np.sum(y_true * log_probs) / self._n
+        return float(loss)
+
+    def backward(self) -> np.ndarray:
+        """Gradient w.r.t. logits: (softmax - y_true) / n."""
+        assert self._probs is not None, "call forward() first"
+        return (self._probs - self._y_true) / self._n

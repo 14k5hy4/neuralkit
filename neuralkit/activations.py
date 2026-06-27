@@ -108,4 +108,33 @@ class Tanh:
         return grad_output * (1.0 - self._out ** 2)
 
 
-# TODO: Softmax (needs careful handling for numerical stability)
+class Softmax:
+    """Softmax activation: turns logits into a probability distribution.
+
+    Uses the log-sum-exp trick for numerical stability (subtracts the
+    row-wise max before exponentiating).
+    """
+
+    def __init__(self) -> None:
+        self._out: np.ndarray | None = None
+
+    def forward(self, x: np.ndarray) -> np.ndarray:
+        """Compute softmax along the last axis."""
+        # subtract max for numerical stability
+        shifted = x - np.max(x, axis=-1, keepdims=True)
+        exp_x = np.exp(shifted)
+        self._out = exp_x / np.sum(exp_x, axis=-1, keepdims=True)
+        return self._out
+
+    def backward(self, grad_output: np.ndarray) -> np.ndarray:
+        """Softmax backward pass (Jacobian-vector product).
+
+        This is the full Jacobian version. For classification with
+        cross-entropy, prefer SoftmaxCrossEntropy which is simpler and
+        more stable.
+        """
+        assert self._out is not None, "forward() must be called before backward()"
+        s = self._out
+        # for each sample: dout * (diag(s) - s @ s.T)
+        # vectorized version
+        return s * (grad_output - np.sum(grad_output * s, axis=-1, keepdims=True))
