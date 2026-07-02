@@ -46,7 +46,7 @@ class Tensor:
         return self.data.size
 
     @property
-    def dtype(self):
+    def dtype(self) -> np.dtype:
         return self.data.dtype
 
     # ------------------------------------------------------------------
@@ -168,4 +168,4 @@ class Tensor:
             return NotImplemented
         return np.array_equal(self.data, other.data)
 
-    # TODO: add broadcasting helpers once we start building layers
+    # TODO: add __array__ protocol for seamless numpy interop

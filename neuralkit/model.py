@@ -66,7 +66,23 @@ class Sequential:
         print("-" * 58)
         print(f"Total params: {total_params}")
 
-    # TODO: add __len__ and __getitem__ for indexing into layers
+    def train(self) -> None:
+        """Set all layers to training mode."""
+        for layer in self.layers:
+            if hasattr(layer, 'train') and callable(layer.train):
+                layer.train()
+
+    def eval(self) -> None:
+        """Set all layers to evaluation mode."""
+        for layer in self.layers:
+            if hasattr(layer, 'eval') and callable(layer.eval):
+                layer.eval()
+
+    def __len__(self) -> int:
+        return len(self.layers)
+
+    def __getitem__(self, idx: int) -> Layer:
+        return self.layers[idx]
 
     def __repr__(self) -> str:
         layer_strs = "\n  ".join(repr(l) for l in self.layers)
