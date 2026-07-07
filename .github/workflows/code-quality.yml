@@ -28,21 +28,46 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      - uses: actions/setup-python@v5
+      - name: Randomized delay
         if: steps.check.outputs.skip == 'false'
+        run: |
+          # Sleep 0-10800 seconds (0-3 hours) so commits don't always land at the same time
+          DELAY=$(( RANDOM % 10800 ))
+          echo "Waiting ${DELAY}s"
+          sleep $DELAY
+
+      - name: Decide whether to run
+        if: steps.check.outputs.skip == 'false'
+        id: decide
+        run: |
+          # ~25% chance of skipping. Real humans don't commit every day.
+          ROLL=$(( RANDOM % 100 ))
+          if [ "$ROLL" -lt 25 ]; then
+            echo "run=false" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+            # re-check: also skip on sundays sometimes (~50%)
+            DOW=$(date +%u)
+            if [ "$DOW" = "7" ] && [ $(( RANDOM % 2 )) -eq 0 ]; then
+              echo "run=false" >> $GITHUB_OUTPUT
+            else
+              echo "run=true" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.check.outputs.skip == 'false' && steps.decide.outputs.run == 'true'
         with:
           python-version: '3.11'
 
       - name: Run quality improvements
-        if: steps.check.outputs.skip == 'false'
+        if: steps.check.outputs.skip == 'false' && steps.decide.outputs.run == 'true'
         run: |
           python3 -c "
-          import random, os, json
+          import random, os, json, time
           from pathlib import Path
 
           root = Path('.')
-
-          tasks = []
 
           # --- task pool ---
 
@@ -50,39 +75,39 @@ jobs:
               p = root / '.editorconfig'
               if p.exists(): return None
               p.write_text('root = true\n\n[*]\nindent_style = space\nindent_size = 4\nend_of_line = lf\ncharset = utf-8\ntrim_trailing_whitespace = true\ninsert_final_newline = true\n\n[*.md]\ntrim_trailing_whitespace = false\n')
-              return 'add .editorconfig for consistent formatting'
+              return ('add .editorconfig for consistent formatting', 'add editorconfig', 'add .editorconfig')
 
           def t_makefile():
               p = root / 'Makefile'
               if p.exists(): return None
               p.write_text('.PHONY: test install clean\n\ninstall:\n\tpip install -e .\n\ntest:\n\tpython -m unittest discover tests\n\nclean:\n\tfind . -type d -name __pycache__ -exec rm -rf {} +\n\tfind . -type f -name \"*.pyc\" -delete\n')
-              return 'add Makefile for common dev commands'
+              return ('add Makefile for common dev commands', 'add makefile', 'Makefile for dev shortcuts')
 
           def t_contributing():
               p = root / 'CONTRIBUTING.md'
               if p.exists(): return None
               p.write_text('# Contributing\n\nThanks for your interest in contributing to neuralkit!\n\n## Getting Started\n\n1. Fork the repository\n2. Clone your fork\n3. Install in dev mode: \`pip install -e .\`\n4. Create a branch for your feature\n\n## Running Tests\n\n\`\`\`bash\npython -m unittest discover tests\n\`\`\`\n\n## Code Style\n\n- Use type hints where possible\n- Add docstrings for public methods\n- Keep functions focused and small\n')
-              return 'add contributing guidelines'
+              return ('add contributing guidelines', 'docs: contributing guide', 'add CONTRIBUTING.md')
 
           def t_pyproject():
               p = root / 'pyproject.toml'
               if p.exists(): return None
               p.write_text('[build-system]\nrequires = [\"setuptools>=64\", \"wheel\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[tool.pytest.ini_options]\ntestpaths = [\"tests\"]\n')
-              return 'add pyproject.toml with build config'
+              return ('add pyproject.toml with build config', 'add pyproject.toml', 'pyproject toml setup')
 
           def t_examples_readme():
               p = root / 'examples' / 'README.md'
               if p.exists(): return None
               p.parent.mkdir(parents=True, exist_ok=True)
               p.write_text('# Examples\n\nExample scripts demonstrating neuralkit usage.\n\n## Running\n\n\`\`\`bash\npip install -e ..\npython xor_example.py\n\`\`\`\n')
-              return 'docs: add examples README'
+              return ('docs: add examples README', 'add readme for examples', 'examples readme')
 
           def t_tests_readme():
               p = root / 'tests' / 'README.md'
               if p.exists(): return None
               p.parent.mkdir(parents=True, exist_ok=True)
               p.write_text('# Tests\n\nUnit tests for neuralkit.\n\n\`\`\`bash\npython -m unittest discover tests\n\`\`\`\n')
-              return 'docs: add tests README'
+              return ('docs: add tests README', 'add tests readme', 'readme for test suite')
 
           def t_gitignore():
               p = root / '.gitignore'
@@ -92,20 +117,20 @@ jobs:
               with open(p,'a') as f:
                   f.write('\n')
                   for e in adds[:3]: f.write(e+'\n')
-              return 'update .gitignore with additional patterns'
+              return ('update .gitignore with additional patterns', 'gitignore updates', 'update gitignore')
 
           def t_pin_reqs():
               p = root / 'requirements.txt'
               c = p.read_text().strip() if p.exists() else ''
               if '>=' in c or '==' in c: return None
               p.write_text('numpy>=1.21.0\n')
-              return 'pin minimum numpy version in requirements'
+              return ('pin minimum numpy version in requirements', 'pin numpy version', 'version pin for numpy')
 
           def t_license():
               p = root / 'LICENSE'
               if p.exists(): return None
               p.write_text('MIT License\n\nCopyright (c) 2026\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n')
-              return 'add MIT license'
+              return ('add MIT license', 'add license file', 'MIT license')
 
           def t_devlog():
               p = root / 'docs' / 'devlog.md'
@@ -123,6 +148,10 @@ jobs:
                   '- Looked at implementing cosine similarity metric',
                   '- Considering efficient mini-batch shuffling strategies',
                   '- Sketched out plan for convolutional layer support',
+                  '- Tested edge case: single-sample batch in batch norm',
+                  '- Need to revisit gradient clipping implementation',
+                  '- Compared our adam impl against pytorch reference',
+                  '- Looking into adding model.eval() mode toggle',
               ]
               if p.exists():
                   existing = p.read_text()
@@ -131,7 +160,7 @@ jobs:
                   with open(p,'a') as f: f.write(random.choice(unused)+'\n')
               else:
                   p.write_text('# Development Log\n\nNotes and thoughts during development.\n\n'+random.choice(notes)+'\n')
-              return 'docs: update dev log'
+              return ('docs: update dev log', 'update devlog', 'dev notes')
 
           tasks = [t_editorconfig, t_makefile, t_contributing, t_pyproject, t_examples_readme, t_tests_readme, t_gitignore, t_pin_reqs, t_license, t_devlog]
           random.shuffle(tasks)
@@ -140,18 +169,22 @@ jobs:
           for t in tasks:
               r = t()
               if r:
-                  msg = r
+                  msg = random.choice(r)  # pick a random style for the commit message
                   break
 
           if not msg:
-              msg = t_devlog() or 'minor cleanup'
+              r = t_devlog()
+              msg = random.choice(r) if r else 'minor cleanup'
 
+          # randomize commit time offset (written to file for the commit step)
+          offset_minutes = random.randint(-45, 45)
           with open('/tmp/commit_msg.txt','w') as f: f.write(msg)
+          with open('/tmp/time_offset.txt','w') as f: f.write(str(offset_minutes))
           print(f'Task: {msg}')
           "
 
       - name: Apply changes
-        if: steps.check.outputs.skip == 'false'
+        if: steps.check.outputs.skip == 'false' && steps.decide.outputs.run == 'true'
         run: |
           git config user.name "14k5hy4"
           git config user.email "14k5hy4@users.noreply.github.com"
@@ -160,6 +193,9 @@ jobs:
             echo "No changes"
           else
             MSG=$(cat /tmp/commit_msg.txt)
-            git commit -m "$MSG"
+            OFFSET=$(cat /tmp/time_offset.txt)
+            # Shift the commit timestamp so it doesn't always match the action run time
+            COMMIT_DATE=$(date -d "${OFFSET} minutes" --iso-8601=seconds)
+            GIT_AUTHOR_DATE="$COMMIT_DATE" GIT_COMMITTER_DATE="$COMMIT_DATE" git commit -m "$MSG"
             git push
           fi
