@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 
@@ -16,12 +16,15 @@ class Trainer:
         model: A Sequential model instance.
         optimizer: An optimizer instance (e.g. SGD, Adam).
         loss_fn: Loss function with forward() and backward() methods.
+        metrics: Optional list of metric functions. Each should take
+            (y_true, y_pred) and return a float.
     """
 
-    def __init__(self, model, optimizer, loss_fn) -> None:
+    def __init__(self, model, optimizer, loss_fn, metrics: Optional[List] = None) -> None:
         self.model = model
         self.optimizer = optimizer
         self.loss_fn = loss_fn
+        self.metrics = metrics or []
 
     def fit(
         self,
@@ -43,22 +46,28 @@ class Trainer:
         epochs : int
             Number of passes through the dataset.
         batch_size : int, optional
-            If None, use the full dataset each step (batch gradient descent).
+            If None, use the full dataset each step.
         val_data : tuple, optional
-            (x_val, y_val) for validation loss tracking.
+            (x_val, y_val) for validation tracking.
         verbose : bool
             Whether to print loss each epoch.
 
         Returns
         -------
         dict
-            Training history with 'loss' and optionally 'val_loss' keys.
+            Training history with loss, val_loss, and metric values.
         """
         history: Dict[str, List[float]] = {"loss": []}
         if val_data is not None:
             history["val_loss"] = []
 
-        # set up data loader for mini-batch or full-batch
+        # init metric history
+        for m in self.metrics:
+            name = m.__name__ if hasattr(m, '__name__') else str(m)
+            history[name] = []
+            if val_data is not None:
+                history[f"val_{name}"] = []
+
         if batch_size is not None:
             loader = DataLoader(
                 ArrayDataset(x, y),
@@ -69,7 +78,6 @@ class Trainer:
             loader = None
 
         for epoch in range(1, epochs + 1):
-            # training
             if hasattr(self.model, 'train'):
                 self.model.train()
 
@@ -84,6 +92,16 @@ class Trainer:
 
             history["loss"].append(epoch_loss)
 
+            # compute train metrics on full data
+            if self.metrics:
+                if hasattr(self.model, 'eval'):
+                    self.model.eval()
+                train_pred = self.model.forward(x)
+                for m in self.metrics:
+                    name = m.__name__ if hasattr(m, '__name__') else str(m)
+                    val = m(y, self._to_labels(train_pred))
+                    history[name].append(float(val))
+
             # validation
             if val_data is not None:
                 if hasattr(self.model, 'eval'):
@@ -93,14 +111,44 @@ class Trainer:
                 val_loss = self.loss_fn.forward(val_pred, y_val)
                 history["val_loss"].append(float(val_loss))
 
+                for m in self.metrics:
+                    name = m.__name__ if hasattr(m, '__name__') else str(m)
+                    val = m(y_val, self._to_labels(val_pred))
+                    history[f"val_{name}"].append(float(val))
+
             # logging
             if verbose and (epoch % max(1, epochs // 10) == 0 or epoch == 1):
                 msg = f"epoch {epoch}/{epochs} — loss: {epoch_loss:.6f}"
                 if val_data is not None:
                     msg += f" — val_loss: {history['val_loss'][-1]:.6f}"
+                for m in self.metrics:
+                    name = m.__name__ if hasattr(m, '__name__') else str(m)
+                    msg += f" — {name}: {history[name][-1]:.4f}"
                 print(msg)
 
         return history
+
+    def evaluate(
+        self,
+        x: np.ndarray,
+        y: np.ndarray,
+    ) -> Dict[str, float]:
+        """Evaluate model on test data and return metric results.
+
+        Returns dict with 'loss' and each metric name.
+        """
+        if hasattr(self.model, 'eval'):
+            self.model.eval()
+
+        pred = self.model.forward(x)
+        loss = self.loss_fn.forward(pred, y)
+
+        results: Dict[str, float] = {"loss": float(loss)}
+        for m in self.metrics:
+            name = m.__name__ if hasattr(m, '__name__') else str(m)
+            results[name] = float(m(y, self._to_labels(pred)))
+
+        return results
 
     def _train_step(self, x_batch: np.ndarray, y_batch: np.ndarray) -> float:
         """Single forward + backward + update step."""
@@ -112,3 +160,10 @@ class Trainer:
 
         self.optimizer.step(self.model.layers)
         return loss
+
+    @staticmethod
+    def _to_labels(pred: np.ndarray) -> np.ndarray:
+        """Convert probabilities to class labels (argmax for multi-class)."""
+        if pred.ndim == 2 and pred.shape[1] > 1:
+            return np.argmax(pred, axis=1)
+        return (pred > 0.5).astype(int).ravel()
