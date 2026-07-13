@@ -113,3 +113,58 @@ def f1_score(
         f1s.append(f)
 
     return float(np.mean(f1s))
+
+
+def confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
+    """Compute confusion matrix.
+
+    Returns:
+        Matrix of shape (n_classes, n_classes) where element [i, j]
+        is the count of samples with true label i predicted as j.
+    """
+    y_true = np.asarray(y_true).ravel()
+    y_pred = np.asarray(y_pred).ravel()
+    classes = np.unique(np.concatenate([y_true, y_pred]))
+    n = len(classes)
+    class_to_idx = {c: i for i, c in enumerate(classes)}
+
+    cm = np.zeros((n, n), dtype=int)
+    for t, p in zip(y_true, y_pred):
+        cm[class_to_idx[t], class_to_idx[p]] += 1
+    return cm
+
+
+def classification_report(y_true: np.ndarray, y_pred: np.ndarray) -> str:
+    """Generate a text report showing main classification metrics per class."""
+    y_true = np.asarray(y_true).ravel()
+    y_pred = np.asarray(y_pred).ravel()
+    classes = np.unique(np.concatenate([y_true, y_pred]))
+
+    lines = []
+    lines.append(f"{'':>12} {'precision':>10} {'recall':>10} {'f1-score':>10} {'support':>10}")
+    lines.append("")
+
+    total_support = 0
+    for cls in classes:
+        tp = np.sum((y_pred == cls) & (y_true == cls))
+        fp = np.sum((y_pred == cls) & (y_true != cls))
+        fn = np.sum((y_pred != cls) & (y_true == cls))
+        support = tp + fn
+
+        p = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        r = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
+
+        lines.append(f"{str(cls):>12} {p:>10.4f} {r:>10.4f} {f:>10.4f} {support:>10}")
+        total_support += support
+
+    lines.append("")
+    acc = accuracy(y_true, y_pred)
+    macro_p = precision(y_true, y_pred, average="macro")
+    macro_r = recall(y_true, y_pred, average="macro")
+    macro_f = f1_score(y_true, y_pred, average="macro")
+
+    lines.append(f"{'accuracy':>12} {'':>10} {'':>10} {acc:>10.4f} {total_support:>10}")
+    lines.append(f"{'macro avg':>12} {macro_p:>10.4f} {macro_r:>10.4f} {macro_f:>10.4f} {total_support:>10}")
+
+    return "\n".join(lines)
