@@ -34,3 +34,6 @@ htmlcov/
 
 # Dev internal
 .dev/
+
+.mypy_cache/
+outputs/
