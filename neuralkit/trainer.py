@@ -20,11 +20,12 @@ class Trainer:
             (y_true, y_pred) and return a float.
     """
 
-    def __init__(self, model, optimizer, loss_fn, metrics: Optional[List] = None) -> None:
+    def __init__(self, model, optimizer, loss_fn, metrics: Optional[List] = None, callbacks: Optional[List] = None) -> None:
         self.model = model
         self.optimizer = optimizer
         self.loss_fn = loss_fn
         self.metrics = metrics or []
+        self.callbacks = callbacks or []
 
     def fit(
         self,
@@ -34,6 +35,7 @@ class Trainer:
         batch_size: Optional[int] = None,
         val_data: Optional[tuple] = None,
         verbose: bool = True,
+        callbacks: Optional[List] = None,
     ) -> Dict[str, List[float]]:
         """Train the model on the given data.
 
@@ -77,7 +79,18 @@ class Trainer:
         else:
             loader = None
 
+        # merge callbacks from constructor and fit() call
+        all_callbacks = self.callbacks + (callbacks or [])
+
+        # notify: train begin
+        for cb in all_callbacks:
+            cb.on_train_begin({"epochs": epochs})
+
         for epoch in range(1, epochs + 1):
+            # notify: epoch begin
+            for cb in all_callbacks:
+                cb.on_epoch_begin(epoch)
+
             if hasattr(self.model, 'train'):
                 self.model.train()
 
@@ -125,6 +138,21 @@ class Trainer:
                     name = m.__name__ if hasattr(m, '__name__') else str(m)
                     msg += f" — {name}: {history[name][-1]:.4f}"
                 print(msg)
+
+            # notify: epoch end — pass internal refs so callbacks can act
+            epoch_logs = dict(history)
+            epoch_logs["_model"] = self.model
+            epoch_logs["_optimizer"] = self.optimizer
+            for cb in all_callbacks:
+                cb.on_epoch_end(epoch, epoch_logs)
+
+            # check if any callback requested stop
+            if any(getattr(cb, 'stop_training', False) for cb in all_callbacks):
+                break
+
+        # notify: train end
+        for cb in all_callbacks:
+            cb.on_train_end(history)
 
         return history
 
