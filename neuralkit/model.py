@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+import json
+import os
+from typing import Dict, List, Optional
+
 import numpy as np
 
 from neuralkit.layers.base import Layer
@@ -77,6 +80,102 @@ class Sequential:
         for layer in self.layers:
             if hasattr(layer, 'eval') and callable(layer.eval):
                 layer.eval()
+
+    def save(self, dirpath: str) -> None:
+        """Save model architecture and weights to a directory.
+
+        Creates:
+            dirpath/architecture.json — layer config
+            dirpath/weights.npz — parameter arrays
+        """
+        os.makedirs(dirpath, exist_ok=True)
+
+        # save architecture
+        arch = []
+        for layer in self.layers:
+            layer_info = {
+                "type": layer.__class__.__name__,
+                "module": layer.__class__.__module__,
+            }
+            # store constructor-relevant attributes
+            for attr in ("input_dim", "output_dim", "num_features",
+                         "rate", "eps", "momentum"):
+                if hasattr(layer, attr):
+                    layer_info[attr] = getattr(layer, attr)
+
+            # save activation info if present
+            if hasattr(layer, 'activation') and layer.activation is not None:
+                act = layer.activation
+                act_info = {
+                    "type": act.__class__.__name__,
+                    "module": act.__class__.__module__,
+                }
+                # save activation params
+                for act_attr in ("negative_slope", "alpha"):
+                    if hasattr(act, act_attr):
+                        act_info[act_attr] = getattr(act, act_attr)
+                layer_info["activation"] = act_info
+
+            arch.append(layer_info)
+
+        with open(os.path.join(dirpath, "architecture.json"), "w") as f:
+            json.dump(arch, f, indent=2)
+
+        # save weights
+        weight_dict = {}
+        for i, layer in enumerate(self.layers):
+            for name, param in layer.params.items():
+                weight_dict[f"layer_{i}_{name}"] = param
+        np.savez(os.path.join(dirpath, "weights.npz"), **weight_dict)
+
+    @classmethod
+    def load(cls, dirpath: str) -> "Sequential":
+        """Load a model from a directory created by save().
+
+        Returns a new Sequential instance with restored weights.
+        """
+        import importlib
+
+        with open(os.path.join(dirpath, "architecture.json"), "r") as f:
+            arch = json.load(f)
+
+        weights = np.load(os.path.join(dirpath, "weights.npz"))
+
+        layers = []
+        for i, layer_info in enumerate(arch):
+            # resolve layer class
+            mod = importlib.import_module(layer_info["module"])
+            LayerClass = getattr(mod, layer_info["type"])
+
+            # build constructor kwargs
+            kwargs = {}
+            for attr in ("input_dim", "output_dim", "num_features",
+                         "rate", "eps", "momentum"):
+                if attr in layer_info:
+                    kwargs[attr] = layer_info[attr]
+
+            # resolve activation if present
+            if "activation" in layer_info:
+                act_info = layer_info["activation"]
+                act_mod = importlib.import_module(act_info["module"])
+                ActClass = getattr(act_mod, act_info["type"])
+                act_kwargs = {}
+                for act_attr in ("negative_slope", "alpha"):
+                    if act_attr in act_info:
+                        act_kwargs[act_attr] = act_info[act_attr]
+                kwargs["activation"] = ActClass(**act_kwargs)
+
+            layer = LayerClass(**kwargs)
+
+            # restore weights
+            for name in layer.params:
+                key = f"layer_{i}_{name}"
+                if key in weights:
+                    layer.params[name][:] = weights[key]
+
+            layers.append(layer)
+
+        return cls(layers)
 
     def __len__(self) -> int:
         return len(self.layers)
