@@ -4,8 +4,6 @@ A neural network framework built from scratch in Python. No PyTorch, no TensorFl
 
 Every forward pass, backward pass, gradient computation, and parameter update is implemented from first principles. If you can build it from scratch, you can debug it, optimize it, and explain it.
 
-> **Coming soon:** Export trained models to standalone C for fast inference without Python. See [Roadmap](#roadmap).
-
 ## Installation
 
 ```bash
@@ -192,43 +190,15 @@ model.backward(grad)                         # backpropagate through layers
 optimizer.step(model.layers)                 # update parameters
 ```
 
-## Roadmap
+## What's Next
 
-**Phase 1: Core Framework** (in progress)
-- [x] Tensor operations, activations, loss functions
-- [x] Dense, Dropout, BatchNorm layers
-- [x] SGD (with momentum), Adam optimizers
-- [x] DataLoader, transforms, train/test splits
-- [x] Metrics: accuracy, precision, recall, F1, confusion matrix, R2
-- [x] LR schedulers: Step, Exponential, Cosine, ReduceOnPlateau
-- [x] Callbacks: EarlyStopping, ModelCheckpoint
-- [x] Model save/load
-- [x] Examples: XOR, Iris classification, regression
-- [ ] LeakyReLU, ELU, Swish activations
-- [ ] RMSProp optimizer
-- [ ] Gradient clipping
-- [ ] MNIST example
-- [ ] L1/L2 regularization
-- [ ] Comprehensive test suite
-- [ ] v0.2.0 release
+Some things I'm planning to add:
 
-**Phase 2: C Export MVP** (planned)
-- [ ] C code generator for Dense layers and ReLU
-- [ ] Generate standalone `.c` file from trained model
-- [ ] Compile with `gcc`, run without Python
-- [ ] Correctness tests (Python vs C output)
-- [ ] Numerical tolerance documentation
-
-**Phase 3: C Export Polish** (planned)
-- [ ] Sigmoid, tanh, softmax in C
-- [ ] Arbitrary-depth model support
-- [ ] Python vs C inference benchmarks
-- [ ] Support matrix documentation
-
-**Phase 4: Training Diagnostics** (planned)
-- [ ] Gradient flow tracker, dead neuron detector
-- [ ] Loss anomaly detection
-- [ ] Epoch health reports
+- Export trained models to standalone C for fast inference without Python
+- LeakyReLU, ELU, Swish activations
+- Gradient clipping
+- MNIST example
+- Training diagnostics (gradient health, dead neuron detection)
 
 ## Why Build This?
 
