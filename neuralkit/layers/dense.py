@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 
 import numpy as np
 from numpy import ndarray
 
 from neuralkit.layers.base import Layer
+from neuralkit.initializers import he_normal
 
 
 class Dense(Layer):
@@ -24,6 +25,9 @@ class Dense(Layer):
         Number of output neurons.
     activation : object, optional
         Activation function instance with forward()/backward() methods.
+    initializer : callable, optional
+        Weight initialization function. Takes (shape,) and returns ndarray.
+        Defaults to he_normal (good for ReLU networks).
     """
 
     def __init__(
@@ -31,14 +35,15 @@ class Dense(Layer):
         input_dim: int,
         output_dim: int,
         activation=None,
+        initializer: Optional[Callable] = None,
     ) -> None:
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.activation = activation
 
-        # He initialization — good default for ReLU-family networks
-        scale = np.sqrt(2.0 / input_dim)
-        self.W: ndarray = np.random.randn(input_dim, output_dim) * scale
+        # use provided initializer or default to He normal
+        init_fn = initializer or he_normal
+        self.W: ndarray = init_fn((input_dim, output_dim))
         self.b: ndarray = np.zeros((1, output_dim))
 
         # cached for backward pass
