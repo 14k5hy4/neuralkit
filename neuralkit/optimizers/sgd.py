@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 import numpy as np
 
 
 class SGD:
-    """SGD with optional momentum and weight decay (L2 regularization).
+    """SGD with optional momentum, weight decay, and gradient clipping.
 
     Parameters
     ----------
@@ -17,6 +17,10 @@ class SGD:
         Momentum factor. 0.0 means vanilla SGD.
     weight_decay : float
         L2 regularization coefficient.
+    clip_value : float, optional
+        If set, clip gradient values to [-clip_value, clip_value].
+    clip_norm : float, optional
+        If set, clip gradient norm to this max value.
     """
 
     def __init__(
@@ -24,11 +28,25 @@ class SGD:
         lr: float = 0.01,
         momentum: float = 0.0,
         weight_decay: float = 0.0,
+        clip_value: Optional[float] = None,
+        clip_norm: Optional[float] = None,
     ) -> None:
         self.lr = lr
         self.momentum = momentum
         self.weight_decay = weight_decay
+        self.clip_value = clip_value
+        self.clip_norm = clip_norm
         self._velocities: dict = {}
+
+    def _clip_gradient(self, grad: np.ndarray) -> np.ndarray:
+        """Apply gradient clipping if configured."""
+        if self.clip_value is not None:
+            grad = np.clip(grad, -self.clip_value, self.clip_value)
+        if self.clip_norm is not None:
+            norm = np.linalg.norm(grad)
+            if norm > self.clip_norm:
+                grad = grad * (self.clip_norm / norm)
+        return grad
 
     def step(self, layers: List) -> None:
         """Update parameters for all layers that have gradients."""
@@ -47,6 +65,8 @@ class SGD:
                 # L2 regularization adds param * weight_decay to gradient
                 if self.weight_decay != 0.0:
                     grad = grad + self.weight_decay * params[key]
+
+                grad = self._clip_gradient(grad)
 
                 # velocity tracking per (layer_index, param_name)
                 vel_key = (i, key)
