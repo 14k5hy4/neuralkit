@@ -4,6 +4,7 @@ Loads a hardcoded subset of the Iris dataset, preprocesses with
 StandardScaler, trains a small network, and prints metrics.
 """
 
+import os
 import numpy as np
 
 from neuralkit.model import Sequential
@@ -14,7 +15,8 @@ from neuralkit.optimizers import Adam
 from neuralkit.trainer import Trainer
 from neuralkit.data.transforms import StandardScaler, OneHotEncoder
 from neuralkit.data.splits import train_test_split
-from neuralkit.metrics import accuracy, classification_report
+from neuralkit.metrics import accuracy, classification_report, confusion_matrix
+from neuralkit.utils.visualization import plot_training_history, plot_confusion_matrix
 
 
 def load_iris_subset():
@@ -73,6 +75,10 @@ def load_iris_subset():
 def main():
     np.random.seed(42)
 
+    # output directory for plots
+    out_dir = os.path.join(os.path.dirname(__file__), "outputs")
+    os.makedirs(out_dir, exist_ok=True)
+
     # load and preprocess
     X, y = load_iris_subset()
     print(f"Loaded Iris dataset: {X.shape[0]} samples, {X.shape[1]} features, {len(np.unique(y))} classes")
@@ -94,7 +100,7 @@ def main():
     model = Sequential([
         Dense(4, 16, activation=ReLU()),
         Dense(16, 8, activation=ReLU()),
-        Dense(8, 3),  # raw logits, SoftmaxCrossEntropy handles softmax
+        Dense(8, 3),
     ])
 
     model.summary()
@@ -123,6 +129,16 @@ def main():
     print(f"Test accuracy: {accuracy(y_test_labels, pred_labels):.4f}")
     print()
     print(classification_report(y_test_labels, pred_labels))
+
+    # save plots
+    plot_training_history(history, save_path=os.path.join(out_dir, "iris_training.png"))
+
+    cm = confusion_matrix(y_test_labels, pred_labels)
+    plot_confusion_matrix(
+        cm,
+        class_names=["setosa", "versicolor", "virginica"],
+        save_path=os.path.join(out_dir, "iris_confusion_matrix.png"),
+    )
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ Shows how to use neuralkit for regression tasks with MSE loss
 and evaluation using regression metrics.
 """
 
+import os
 import numpy as np
 
 from neuralkit.model import Sequential
@@ -14,6 +15,7 @@ from neuralkit.optimizers import Adam
 from neuralkit.trainer import Trainer
 from neuralkit.data.splits import train_test_split
 from neuralkit.metrics.regression import mse, rmse, r2_score
+from neuralkit.utils.visualization import plot_training_history
 
 
 def generate_sine_data(n_samples: int = 200, noise: float = 0.1, seed: int = 42):
@@ -29,7 +31,6 @@ def print_predictions(x, y_true, y_pred, n=20):
     print(f"\n{'x':>8} {'actual':>10} {'predicted':>10} {'error':>10}")
     print("-" * 42)
 
-    # sort by x for readability
     order = np.argsort(x.ravel())
     step = max(1, len(order) // n)
 
@@ -44,6 +45,9 @@ def print_predictions(x, y_true, y_pred, n=20):
 def main():
     np.random.seed(42)
 
+    out_dir = os.path.join(os.path.dirname(__file__), "outputs")
+    os.makedirs(out_dir, exist_ok=True)
+
     # generate data
     X, y = generate_sine_data(n_samples=300, noise=0.1)
     X_train, X_test, y_train, y_test = train_test_split(
@@ -51,7 +55,7 @@ def main():
     )
     print(f"Generated sine data: {X_train.shape[0]} train, {X_test.shape[0]} test")
 
-    # build model — small net with Tanh activations works well for smooth functions
+    # build model
     model = Sequential([
         Dense(1, 32, activation=ReLU()),
         Dense(32, 16, activation=Tanh()),
@@ -84,11 +88,13 @@ def main():
     print(f"RMSE: {rmse(y_test, y_pred):.6f}")
     print(f"R²:   {r2_score(y_test, y_pred):.4f}")
 
-    # show some predictions
     print_predictions(X_test, y_test, y_pred)
 
     print(f"\nFinal train loss: {history['loss'][-1]:.6f}")
     print(f"Final val loss:   {history['val_loss'][-1]:.6f}")
+
+    # save training plot
+    plot_training_history(history, save_path=os.path.join(out_dir, "regression_training.png"))
 
 
 if __name__ == "__main__":

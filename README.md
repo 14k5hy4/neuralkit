@@ -57,6 +57,9 @@ See [`examples/`](examples/) for more: [XOR](examples/xor_example.py), [Iris cla
 | Activation | Notes |
 |---|---|
 | `ReLU` | Caches mask for backward pass |
+| `LeakyReLU` | Configurable `negative_slope` (default 0.01) |
+| `ELU` | Exponential for negatives, `alpha` parameter |
+| `Swish` | Self-gated: `x * sigmoid(x)` |
 | `Sigmoid` | Clipped to prevent overflow (`np.clip(x, -88, 88)`) |
 | `Tanh` | Standard implementation |
 | `Softmax` | Numerically stable (subtracts row-wise max before exp) |
@@ -71,8 +74,16 @@ See [`examples/`](examples/) for more: [XOR](examples/xor_example.py), [Iris cla
 ### Optimizers
 | Optimizer | Details |
 |---|---|
-| `SGD` | Supports momentum and weight decay (L2 regularization) |
-| `Adam` | Following Kingma & Ba (2014) -- first/second moment estimates with bias correction |
+| `SGD` | Supports momentum, weight decay, gradient clipping (by value and norm) |
+| `Adam` | Kingma & Ba (2014) with gradient clipping support |
+
+### Weight Initialization
+| Initializer | Details |
+|---|---|
+| `he_normal`, `he_uniform` | For ReLU networks (He et al., 2015) |
+| `xavier_normal`, `xavier_uniform` | For sigmoid/tanh (Glorot & Bengio, 2010) |
+| `lecun_normal` | For SELU activation |
+| `zeros`, `ones`, `constant` | Simple initializers |
 
 ### Learning Rate Schedulers
 | Scheduler | Details |
@@ -127,6 +138,15 @@ Architecture saved as JSON, weights as compressed `.npz`.
 - Learning rate scheduler support
 - Returns training history dict for plotting
 
+### Visualization
+| Function | Details |
+|---|---|
+| `plot_training_history` | Loss and metric curves over epochs |
+| `plot_confusion_matrix` | Heatmap with annotations |
+| `plot_decision_boundary` | 2D decision boundary for classifiers |
+
+See [`examples/outputs/`](examples/outputs/) for sample plots.
+
 ## Project Structure
 
 ```
@@ -134,19 +154,20 @@ neuralkit/
 ├── neuralkit/
 │   ├── model.py              # Sequential model container + save/load
 │   ├── trainer.py             # Training loop with callbacks and scheduler support
-│   ├── activations.py         # ReLU, Sigmoid, Tanh, Softmax
+│   ├── activations.py         # ReLU, LeakyReLU, ELU, Swish, Sigmoid, Tanh, Softmax
 │   ├── losses.py              # MSE, CrossEntropy, SoftmaxCrossEntropy
 │   ├── callbacks.py           # EarlyStopping, ModelCheckpoint
+│   ├── initializers.py        # Xavier, He, LeCun, zeros, ones
 │   ├── core/
 │   │   └── tensor.py          # Basic tensor operations
 │   ├── layers/
 │   │   ├── base.py            # Abstract Layer class
-│   │   ├── dense.py           # Fully-connected layer
+│   │   ├── dense.py           # Fully-connected layer (configurable initializer)
 │   │   ├── dropout.py         # Dropout regularization
 │   │   └── batchnorm.py       # Batch normalization
 │   ├── optimizers/
-│   │   ├── sgd.py             # SGD with momentum + weight decay
-│   │   ├── adam.py            # Adam optimizer
+│   │   ├── sgd.py             # SGD with momentum, weight decay, gradient clipping
+│   │   ├── adam.py            # Adam optimizer with gradient clipping
 │   │   └── schedulers.py      # LR schedulers
 │   ├── data/
 │   │   ├── loader.py          # DataLoader, ArrayDataset
@@ -155,10 +176,13 @@ neuralkit/
 │   └── metrics/
 │       ├── classification.py  # Accuracy, precision, recall, F1, confusion matrix
 │       └── regression.py      # R2, MSE, MAE
+│   └── utils/
+│       └── visualization.py   # Loss curves, confusion matrix, decision boundary
 ├── examples/
 │   ├── xor_example.py         # XOR classification
 │   ├── iris_example.py        # Iris multi-class classification
-│   └── regression_example.py  # Synthetic regression demo
+│   ├── regression_example.py  # Synthetic regression demo
+│   └── outputs/               # Generated plots
 ├── tests/
 │   ├── test_activations.py    # Activation function tests
 │   ├── test_layers.py         # Layer forward/backward tests with gradient checking
@@ -194,11 +218,11 @@ optimizer.step(model.layers)                 # update parameters
 
 Some things I'm planning to add:
 
-- Export trained models to standalone C for fast inference without Python
-- LeakyReLU, ELU, Swish activations
-- Gradient clipping
+- Conv2D and pooling layers for image tasks
 - MNIST example
+- Export trained models to standalone C for fast inference
 - Training diagnostics (gradient health, dead neuron detection)
+- RMSProp optimizer
 
 ## Why Build This?
 
