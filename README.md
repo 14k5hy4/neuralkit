@@ -4,9 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-NumPy%20only-brightgreen.svg)]()
 
-A small neural network library built with just NumPy. No PyTorch or TensorFlow underneath.
+A lightweight, zero-dependency neural network framework built strictly from scratch in Python. No PyTorch, no TensorFlow — just NumPy.
 
-Every forward pass, backprop step, gradient calculation, and weight update is explicitly written in Python without autograd magic.
+Every forward pass, backward pass, gradient computation, parameter update, and initialization strategy is implemented from first principles. If you can build it from scratch, you can debug it, optimize it, and truly understand it.
 
 ---
 
