@@ -20,12 +20,13 @@ class Trainer:
             (y_true, y_pred) and return a float.
     """
 
-    def __init__(self, model, optimizer, loss_fn, metrics: Optional[List] = None, callbacks: Optional[List] = None) -> None:
+    def __init__(self, model, optimizer, loss_fn, metrics: Optional[List] = None, callbacks: Optional[List] = None, regularizer=None) -> None:
         self.model = model
         self.optimizer = optimizer
         self.loss_fn = loss_fn
         self.metrics = metrics or []
         self.callbacks = callbacks or []
+        self.regularizer = regularizer
 
     def fit(
         self,
@@ -183,8 +184,20 @@ class Trainer:
         predictions = self.model.forward(x_batch)
         loss = self.loss_fn.forward(predictions, y_batch)
 
+        # add regularization penalty to loss
+        if self.regularizer is not None:
+            loss = loss + self.regularizer.penalty(self.model.layers)
+
         grad = self.loss_fn.backward()
         self.model.backward(grad)
+
+        # add regularizer gradients to param gradients
+        if self.regularizer is not None:
+            for layer in self.model.layers:
+                grads = layer.grads
+                for key, param in layer.params.items():
+                    if grads.get(key) is not None:
+                        grads[key] = grads[key] + self.regularizer.grad(param)
 
         self.optimizer.step(self.model.layers)
         return loss

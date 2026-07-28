@@ -81,6 +81,15 @@ class Sequential:
             if hasattr(layer, 'eval') and callable(layer.eval):
                 layer.eval()
 
+    @property
+    def trainable_params(self) -> List[np.ndarray]:
+        """Collect all trainable parameters across layers."""
+        params = []
+        for layer in self.layers:
+            for p in layer.params.values():
+                params.append(p)
+        return params
+
     def save(self, dirpath: str) -> None:
         """Save model architecture and weights to a directory.
 
