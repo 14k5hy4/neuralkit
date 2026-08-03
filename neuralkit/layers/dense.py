@@ -9,6 +9,7 @@ from numpy import ndarray
 
 from neuralkit.layers.base import Layer
 from neuralkit.initializers import he_normal
+from neuralkit.exceptions import ShapeMismatchError
 
 
 class Dense(Layer):
@@ -61,6 +62,12 @@ class Dense(Layer):
             Output of shape (batch_size, output_dim).
         """
         self._input = x
+        if x.ndim == 2 and x.shape[1] != self.input_dim:
+            raise ShapeMismatchError(
+                expected=f"(batch_size, {self.input_dim})",
+                got=f"{x.shape}",
+                context=f"Dense({self.input_dim}, {self.output_dim}) forward",
+            )
         # NOTE: numpy's @ operator delegates to BLAS for matrix multiply,
         # which is already the fastest path for dense layers. Broadcasting
         # handles the bias addition without explicit tiling.

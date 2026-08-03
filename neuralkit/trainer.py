@@ -7,6 +7,9 @@ from typing import Any, Callable, Dict, List, Optional
 import numpy as np
 
 from neuralkit.data.loader import DataLoader, ArrayDataset
+from neuralkit.exceptions import ConfigurationError, ShapeMismatchError
+
+import warnings
 
 
 class Trainer:
@@ -61,6 +64,23 @@ class Trainer:
             Training history with loss, val_loss, and metric values.
         """
         history: Dict[str, List[float]] = {"loss": []}
+
+        # validate inputs
+        if x.shape[0] != y.shape[0]:
+            raise ShapeMismatchError(
+                expected=f"{x.shape[0]} samples",
+                got=f"{y.shape[0]} samples",
+                context="x and y must have the same number of samples",
+            )
+        if hasattr(self.optimizer, 'lr') and self.optimizer.lr > 10.0:
+            warnings.warn(
+                f"Learning rate {self.optimizer.lr} is very large. "
+                f"This may cause training instability.",
+                stacklevel=2,
+            )
+        if val_data is not None and (not isinstance(val_data, tuple) or len(val_data) != 2):
+            raise ConfigurationError("val_data must be a tuple of (x_val, y_val)")
+
         if val_data is not None:
             history["val_loss"] = []
 

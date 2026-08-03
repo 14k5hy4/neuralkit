@@ -30,6 +30,11 @@ class Sequential:
 
     def add(self, layer: Layer) -> None:
         """Append a layer to the model."""
+        if not isinstance(layer, Layer):
+            raise TypeError(
+                f"Expected a Layer instance, got {type(layer).__name__}. "
+                f"Make sure you're adding a layer object, not a class."
+            )
         self.layers.append(layer)
 
     def forward(self, x: np.ndarray) -> np.ndarray:
