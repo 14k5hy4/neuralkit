@@ -61,6 +61,9 @@ class Dense(Layer):
             Output of shape (batch_size, output_dim).
         """
         self._input = x
+        # NOTE: numpy's @ operator delegates to BLAS for matrix multiply,
+        # which is already the fastest path for dense layers. Broadcasting
+        # handles the bias addition without explicit tiling.
         out = x @ self.W + self.b
 
         if self.activation is not None:
@@ -77,6 +80,8 @@ class Dense(Layer):
             inp = inp.reshape(1, -1)
             grad_output = grad_output.reshape(1, -1)
 
+        # Vectorized gradient computation — avoids per-sample loops.
+        # inp.T @ grad is a single BLAS call for the full batch.
         self._grad_W = inp.T @ grad_output
         self._grad_b = np.sum(grad_output, axis=0, keepdims=True)
 
