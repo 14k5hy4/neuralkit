@@ -142,3 +142,89 @@ class SoftmaxCrossEntropy:
         """Gradient w.r.t. logits: (softmax - y_true) / n."""
         assert self._probs is not None, "call forward() first"
         return (self._probs - self._y_true) / self._n
+
+
+class HuberLoss:
+    """Huber loss (Smooth L1 loss).
+
+    Combines MSE for small errors and MAE for large errors,
+    controlled by the delta parameter. Less sensitive to outliers
+    than pure MSE.
+
+    L = 0.5 * (y_pred - y_true)² if |y_pred - y_true| <= delta
+        delta * |y_pred - y_true| - 0.5 * delta²  otherwise
+
+    Args:
+        delta: Threshold at which to switch from quadratic to
+            linear. Default 1.0.
+    """
+
+    def __init__(self, delta: float = 1.0) -> None:
+        self.delta = delta
+        self._diff: np.ndarray | None = None
+        self._n: int = 0
+
+    def forward(self, y_pred: np.ndarray, y_true: np.ndarray) -> float:
+        self._diff = y_pred - y_true
+        self._n = y_pred.size
+        abs_diff = np.abs(self._diff)
+
+        # quadratic where |diff| <= delta, linear otherwise
+        quadratic = np.minimum(abs_diff, self.delta)
+        linear = abs_diff - quadratic
+
+        loss = 0.5 * quadratic ** 2 + self.delta * linear
+        return float(np.mean(loss))
+
+    def backward(self) -> np.ndarray:
+        """Gradient: clipped diff for the quadratic region, delta*sign for linear."""
+        assert self._diff is not None, "forward() must be called before backward()"
+        grad = np.where(
+            np.abs(self._diff) <= self.delta,
+            self._diff,
+            self.delta * np.sign(self._diff),
+        )
+        return grad / self._n
+
+
+class BinaryCrossEntropyLoss:
+    """Binary cross-entropy loss for binary classification.
+
+    Expects y_pred to be probabilities (e.g., after sigmoid).
+
+    L = -(1/n) * Σ [y * log(p) + (1-y) * log(1-p)]
+
+    More focused than the generic CrossEntropyLoss -- specifically
+    for single-output binary problems.
+    """
+
+    _EPS = 1e-12
+
+    def __init__(self) -> None:
+        self._y_pred: np.ndarray | None = None
+        self._y_true: np.ndarray | None = None
+        self._n: int = 0
+
+    def forward(self, y_pred: np.ndarray, y_true: np.ndarray) -> float:
+        """Compute binary cross-entropy.
+
+        Args:
+            y_pred: Predicted probabilities in [0, 1].
+            y_true: Binary targets (0 or 1).
+        """
+        clipped = np.clip(y_pred, self._EPS, 1.0 - self._EPS)
+        self._y_pred = clipped
+        self._y_true = y_true
+        self._n = y_pred.shape[0]
+
+        loss = -(y_true * np.log(clipped) + (1.0 - y_true) * np.log(1.0 - clipped))
+        return float(np.mean(loss))
+
+    def backward(self) -> np.ndarray:
+        """dL/dp = -(y/p - (1-y)/(1-p)) / n"""
+        assert self._y_pred is not None, "call forward() first"
+        p = self._y_pred
+        y = self._y_true
+        grad = -(y / p - (1.0 - y) / (1.0 - p))
+        return grad / self._n
+
