@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="neuralkit",
-    version="0.2.1",
+    version="0.2.0",
     author="14k5hy4",
     author_email="",
     description="A lightweight neural network framework built from scratch in Python",

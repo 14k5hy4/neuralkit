@@ -200,9 +200,3 @@ class Sequential:
     def __repr__(self) -> str:
         layer_strs = "\n  ".join(repr(l) for l in self.layers)
         return f"Sequential(\n  {layer_strs}\n)"
-
-
-def load_model(dirpath: str) -> Sequential:
-    """Load a Sequential model from a directory created by model.save()."""
-    return Sequential.load(dirpath)
-

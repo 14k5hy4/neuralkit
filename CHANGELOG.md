@@ -2,11 +2,6 @@
 
 All notable changes to neuralkit are documented here.
 
-## [0.2.1] - 2026-08-05
-
-### Fixed
-- Added `load_model(dirpath)` helper function in `neuralkit.model` and exported it at top-level `neuralkit` package level.
-
 ## [0.2.0] - 2026-08-05
 
 ### Added
