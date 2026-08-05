@@ -240,8 +240,8 @@ Save and reload fully trained model state without re-compiling:
 model.save("saved_models/iris_classifier")
 
 # Reload model
-from neuralkit.model import load_model
-model = load_model("saved_models/iris_classifier")
+from neuralkit.model import Sequential
+model = Sequential.load("saved_models/iris_classifier")
 ```
 - `architecture.json` stores layer types, dimensions, and activation metadata.
 - `weights.npz` stores binary compressed weight and bias tensors.
