@@ -1,8 +1,8 @@
 """neuralkit - A lightweight neural network toolkit built from scratch."""
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
-from neuralkit.model import Sequential
+from neuralkit.model import Sequential, load_model
 from neuralkit.trainer import Trainer
 from neuralkit.activations import Sigmoid, ReLU, Tanh, Softmax, LeakyReLU, ELU, Swish
 from neuralkit.losses import (

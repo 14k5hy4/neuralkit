@@ -15,6 +15,7 @@ Every forward pass, backward pass, gradient computation, parameter update, and i
 
 ## Table of Contents
 
+- [Live Interactive Demo](#live-interactive-demo)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Architecture Overview](#architecture-overview)
@@ -28,13 +29,36 @@ Every forward pass, backward pass, gradient computation, parameter update, and i
   - [Visualization](#visualization)
   - [Model Serialization](#model-serialization)
 - [Comparison with Other Frameworks](#comparison-with-other-frameworks)
+- [What's Next](#whats-next)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [License](#license)
 
 ---
 
+## Live Interactive Demo
+
+Try **NeuralKit** directly in your browser without installing anything locally:
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/14k5hy4/neuralkit/blob/master/examples/demo_notebook.ipynb)
+
+The Colab notebook covers:
+- Training a 2-layer Neural Network on the non-linear XOR problem
+- Plotting loss curves using Matplotlib
+- Multi-class classification on the Iris dataset
+- Model serialization (`.nk` format save and reload)
+
+---
+
 ## Installation
+
+### Via PyPI (Recommended)
+
+```bash
+pip install neuralkit
+```
+
+### From Source
 
 ```bash
 git clone https://github.com/14k5hy4/neuralkit.git
@@ -42,8 +66,8 @@ cd neuralkit
 pip install -e .
 ```
 
-Core requirement: **NumPy** (`>= 1.20.0`).
-Optional: **Matplotlib** (for plotting loss curves, confusion matrices, and decision boundaries).
+- **Core Requirement:** NumPy (`>= 1.20.0`)
+- **Optional Requirement:** Matplotlib (for loss curve, confusion matrix, and decision boundary plots)
 
 ---
 
@@ -61,8 +85,8 @@ from neuralkit.optimizers import SGD
 from neuralkit.trainer import Trainer
 
 # XOR dataset
-X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
-y = np.array([[0], [1], [1], [0]])
+X = np.array([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=np.float64)
+y = np.array([[0], [1], [1], [0]], dtype=np.float64)
 
 # Define model architecture
 model = Sequential([
@@ -84,6 +108,7 @@ Explore runnable examples in [`examples/`](examples/):
 - [XOR Classification](examples/xor_example.py)
 - [Iris Multi-Class Classification](examples/iris_example.py)
 - [Synthetic Sine Wave Regression](examples/regression_example.py)
+- [MNIST Digit Classification](examples/mnist_example.py)
 
 ---
 
@@ -118,7 +143,7 @@ Explore runnable examples in [`examples/`](examples/):
 ```
 
 ### Execution Flow per Iteration:
-1. `DataLoader` generates mini-batches.
+1. `DataLoader` generates mini-batches with optional shuffling.
 2. `Sequential.forward(x_batch)` cascades activations through stacked `Layer` objects.
 3. `LossFunction.forward(pred, y_batch)` evaluates scalar loss + penalty from `Regularizer`.
 4. `LossFunction.backward()` computes initial upstream gradient $\frac{\partial L}{\partial y}$.
@@ -138,7 +163,7 @@ Explore runnable examples in [`examples/`](examples/):
 | `BatchNorm` | Batch normalization (Ioffe & Szegedy, 2015) with learnable $\gamma, \beta$ & running averages. |
 | `Flatten` | Reshapes multi-dimensional tensors to $(N, d_{flat})$. |
 | `ReLU` | Rectified Linear Unit: $f(x) = \max(0, x)$. |
-| `LeakyReLU` | $f(x) = x$ if $x > 0$ else $\alpha x$ with configurable slope. |
+| `LeakyReLU` | $f(x) = x$ if $x > 0$ else $\alpha x$ with configurable negative slope. |
 | `ELU` | Exponential Linear Unit: $f(x) = x$ if $x > 0$ else $\alpha(e^x - 1)$. |
 | `Swish` | Self-gated activation: $f(x) = x \cdot \sigma(x)$. |
 | `Sigmoid` | Logistic sigmoid with range clipping to prevent floating-point overflow. |
@@ -153,6 +178,8 @@ Explore runnable examples in [`examples/`](examples/):
 | `MSELoss` | Mean Squared Error: $\frac{1}{n} \sum (y - \hat{y})^2$. |
 | `CrossEntropyLoss` | Binary & Categorical Cross-Entropy with probability clipping. |
 | `SoftmaxCrossEntropy` | Fused logit-level softmax cross-entropy ($\nabla z = \frac{p - y}{n}$). |
+| `HuberLoss` | Smooth $L_1$ loss robust to outliers ($\delta$-parameterized threshold). |
+| `BinaryCrossEntropyLoss` | Numerically stable binary cross-entropy loss. |
 | `L1` | Lasso penalty: $\lambda \sum |W|$. |
 | `L2` | Ridge penalty: $\frac{1}{2} \lambda \sum W^2$. |
 | `ElasticNet` | Combined L1/L2 regularization penalty. |
@@ -213,8 +240,8 @@ Save and reload fully trained model state without re-compiling:
 model.save("saved_models/iris_classifier")
 
 # Reload model
-from neuralkit.model import Sequential
-model = Sequential.load("saved_models/iris_classifier")
+from neuralkit.model import load_model
+model = load_model("saved_models/iris_classifier")
 ```
 - `architecture.json` stores layer types, dimensions, and activation metadata.
 - `weights.npz` stores binary compressed weight and bias tensors.
@@ -230,6 +257,16 @@ model = Sequential.load("saved_models/iris_classifier")
 | **Autograd Engine** | Explicit manual backprop | Dynamic computation graph | N/A |
 | **Code Visibility** | 100% readable Python | C++ backend core | C / Cython backends |
 | **Model Customization**| Full transparency | High | Fixed API wrappers |
+
+---
+
+## What's Next
+
+Some things planned for upcoming releases:
+
+- **C Code Generator:** Export trained models to standalone C code (`export_to_c()`) for zero-dependency edge inference.
+- **Model Pruning & Int8 Quantization:** Weight magnitude pruning and quantization routines to shrink model footprint.
+- **Training Health Monitor:** Real-time diagnostics for vanishing/exploding gradients, dead ReLU neurons, and loss anomalies.
 
 ---
 
