@@ -3,6 +3,8 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.2.0-orange.svg)](CHANGELOG.md)
+[![PyPI](https://img.shields.io/pypi/v/neuralkit.svg)](https://pypi.org/project/neuralkit/)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/14k5hy4/neuralkit/blob/master/examples/demo_notebook.ipynb)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-NumPy%20only-brightgreen.svg)]()
 
 A lightweight, zero-dependency neural network framework built strictly from scratch in Python. No PyTorch, no TensorFlow — just NumPy.
