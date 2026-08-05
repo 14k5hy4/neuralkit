@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional
+import sys
+import time
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 
@@ -10,6 +12,28 @@ from neuralkit.data.loader import DataLoader, ArrayDataset
 from neuralkit.exceptions import ConfigurationError, ShapeMismatchError
 
 import warnings
+
+
+def _progress_bar(current: int, total: int, width: int = 30, metrics: str = "") -> str:
+    """Build a text progress bar string.
+
+    Args:
+        current: Current step (1-indexed).
+        total: Total steps.
+        width: Character width of the bar.
+        metrics: Metrics string to append.
+
+    Returns:
+        Formatted progress bar like: [████████░░░░░░░░] 50% — loss: 0.1234
+    """
+    frac = current / total
+    filled = int(width * frac)
+    bar = "█" * filled + "░" * (width - filled)
+    pct = f"{frac * 100:5.1f}%"
+    line = f"\r  [{bar}] {pct} — epoch {current}/{total}"
+    if metrics:
+        line += f" — {metrics}"
+    return line
 
 
 class Trainer:
@@ -38,7 +62,7 @@ class Trainer:
         epochs: int = 100,
         batch_size: Optional[int] = None,
         val_data: Optional[tuple] = None,
-        verbose: bool = True,
+        verbose: Union[bool, int] = 1,
         callbacks: Optional[List] = None,
     ) -> Dict[str, List[float]]:
         """Train the model on the given data.
@@ -55,14 +79,21 @@ class Trainer:
             If None, use the full dataset each step.
         val_data : tuple, optional
             (x_val, y_val) for validation tracking.
-        verbose : bool
-            Whether to print loss each epoch.
+        verbose : int or bool
+            0 or False = silent, 1 or True = progress bar,
+            2 = detailed per-epoch logging.
+        callbacks : list, optional
+            Additional callbacks for this training run.
 
         Returns
         -------
         dict
             Training history with loss, val_loss, and metric values.
         """
+        # normalize verbose: True -> 1, False -> 0
+        if isinstance(verbose, bool):
+            verbose = 1 if verbose else 0
+
         history: Dict[str, List[float]] = {"loss": []}
 
         # validate inputs
@@ -107,6 +138,8 @@ class Trainer:
         for cb in all_callbacks:
             cb.on_train_begin({"epochs": epochs})
 
+        t_start = time.time()
+
         for epoch in range(1, epochs + 1):
             # notify: epoch begin
             for cb in all_callbacks:
@@ -150,17 +183,25 @@ class Trainer:
                     val = m(y_val, self._to_labels(val_pred))
                     history[f"val_{name}"].append(float(val))
 
-            # logging
-            if verbose and (epoch % max(1, epochs // 10) == 0 or epoch == 1):
-                msg = f"epoch {epoch}/{epochs} — loss: {epoch_loss:.6f}"
-                if val_data is not None:
-                    msg += f" — val_loss: {history['val_loss'][-1]:.6f}"
-                for m in self.metrics:
-                    name = m.__name__ if hasattr(m, '__name__') else str(m)
-                    msg += f" — {name}: {history[name][-1]:.4f}"
-                print(msg)
+            # --- logging ---
+            metrics_str = self._format_metrics(epoch_loss, history, val_data)
 
-            # notify: epoch end — pass internal refs so callbacks can act
+            if verbose == 1:
+                # progress bar mode
+                bar = _progress_bar(epoch, epochs, metrics=metrics_str)
+                sys.stdout.write(bar)
+                sys.stdout.flush()
+                if epoch == epochs:
+                    elapsed = time.time() - t_start
+                    sys.stdout.write(f"  [{elapsed:.1f}s]\n")
+                    sys.stdout.flush()
+
+            elif verbose >= 2:
+                # detailed mode — print every epoch
+                elapsed = time.time() - t_start
+                print(f"epoch {epoch}/{epochs} — {metrics_str} [{elapsed:.1f}s]")
+
+            # notify: epoch end
             epoch_logs = dict(history)
             epoch_logs["_model"] = self.model
             epoch_logs["_optimizer"] = self.optimizer
@@ -169,6 +210,11 @@ class Trainer:
 
             # check if any callback requested stop
             if any(getattr(cb, 'stop_training', False) for cb in all_callbacks):
+                if verbose == 1:
+                    # finish the progress bar line
+                    elapsed = time.time() - t_start
+                    sys.stdout.write(f"  [stopped @ epoch {epoch}, {elapsed:.1f}s]\n")
+                    sys.stdout.flush()
                 break
 
         # notify: train end
@@ -176,6 +222,18 @@ class Trainer:
             cb.on_train_end(history)
 
         return history
+
+    def _format_metrics(self, epoch_loss: float, history: Dict, val_data) -> str:
+        """Format metrics into a compact string for display."""
+        parts = [f"loss: {epoch_loss:.6f}"]
+        if val_data is not None:
+            parts.append(f"val_loss: {history['val_loss'][-1]:.6f}")
+        for m in self.metrics:
+            name = m.__name__ if hasattr(m, '__name__') else str(m)
+            parts.append(f"{name}: {history[name][-1]:.4f}")
+            if val_data is not None and f"val_{name}" in history:
+                parts.append(f"val_{name}: {history[f'val_{name}'][-1]:.4f}")
+        return " — ".join(parts)
 
     def evaluate(
         self,
