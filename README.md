@@ -2,6 +2,7 @@
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.2.0-orange.svg)](CHANGELOG.md)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-NumPy%20only-brightgreen.svg)]()
 
 A lightweight, zero-dependency neural network framework built strictly from scratch in Python. No PyTorch, no TensorFlow — just NumPy.
@@ -252,4 +253,6 @@ Contributions are welcome! If you'd like to extend `neuralkit`:
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more details.
+Distributed under the MIT License. See [`LICENSE`](LICENSE) for more details.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for version history.
