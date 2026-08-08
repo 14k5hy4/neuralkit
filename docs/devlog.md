@@ -7,3 +7,4 @@ Notes and thoughts during development.
 - Reviewed backprop implementation for numerical edge cases
 - Planning to add learning rate warmup to schedulers
 - Need to revisit gradient clipping implementation
+- Sketched out plan for convolutional layer support
